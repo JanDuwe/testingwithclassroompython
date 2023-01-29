@@ -1,0 +1,78 @@
+name: GitHub Classroom Workflow
+
+on: 
+  push:
+    branches:
+    - '*'
+    - '!badges'
+    
+env:
+  TIME: "test"
+    
+jobs:
+  build:
+    name: Autograding
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
+
+      # add id to action so outputs can be used
+      - uses: education/autograding@v1
+        id: autograder
+        continue-on-error: true
+
+      # make dir for badges
+      - name: badges branch and make dir
+        run: |
+          git checkout badges
+          mkdir -p .github/badges
+        
+      # make points badge
+      - name: points badge
+        uses: emibcn/badge-action@v1
+        with:
+          LABEL: 'Points'
+          STATUS: ${{ steps.autograder.outputs.points }}
+          COLOR: cyan
+          path: '.github/badges/points.svg'
+
+      - name: Upload badge as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: badge
+          path: '.github/badges/points.svg'
+          if-no-files-found: error
+
+      # commit and push badge if score has changed
+      - name: Commit badge
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add '.github/badges/points.svg'
+          git commit -m "Add/Update badge"
+        continue-on-error: true
+      - name: Push badge commit
+        uses: ad-m/github-push-action@master
+        if: success()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: badges
+      
+      - name: Create raw .csv file
+        run: |
+          git checkout master
+          git pull
+          echo ${{ github.event.repository.name }},${{ steps.autograder.outputs.points }} > metadata_raw.csv
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add 'metadata_raw.csv'
+          git commit -m "Add/Update metadata csv file"
+        
+      - name: Push csv commit
+        uses: ad-m/github-push-action@master
+        if: success()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: master
