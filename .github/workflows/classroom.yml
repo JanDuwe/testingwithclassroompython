@@ -26,7 +26,8 @@ jobs:
       # make dir for badges
       - name: badges branch and make dir
         run: |
-          git checkout -b badges
+          git branch badges
+          git checkout badges
           mkdir -p .github/badges
         
       # make points badge
